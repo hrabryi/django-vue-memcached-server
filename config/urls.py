@@ -16,6 +16,8 @@ urlpatterns = [
     path("users/", include("memcache_server.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
     # Your stuff: custom urls includes go here
+    path("api-auth/", include('rest_framework.urls')),
+    path("api/", include('memcache_server.cache.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
