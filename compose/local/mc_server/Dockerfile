@@ -1,0 +1,7 @@
+FROM python:3.6-alpine
+
+ENV PYTHONUNBUFFERED 1
+
+WORKDIR /app
+
+EXPOSE 11211

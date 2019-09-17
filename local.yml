@@ -17,3 +17,14 @@ services:
     ports:
       - "8000:8000"
     command: /start
+
+  server:
+    build:
+      context: .
+      dockerfile: ./compose/local/mc_server/Dockerfile
+    image: memcache_server_tcp
+    volumes:
+      - .:/app
+    ports:
+      - "11211:11211"
+    command: python memcache_server/server/main.py database.sqlite

@@ -19,6 +19,7 @@ class Cache(dict):
 
     def __init__(self):
         kwargs = self._get_init_values_from_db()
+        logging.info(f"INIT values {kwargs}")
         super(Cache, self).__init__(**kwargs)
 
     def _get_init_values_from_db(self):
@@ -26,7 +27,7 @@ class Cache(dict):
         Get k,v from database and return dictionary.
         :return: dict
         """
-        conn = sqlite3.connect('database.sqlite')
+        conn = sqlite3.connect(db_file_name)
         with conn:
             data = conn.execute('SELECT key, value, exptime, bytes  FROM cache;')
             all_rows = data.fetchall()
@@ -43,7 +44,8 @@ def _update_db(command, key, value=None, exptime=None, bytes_length=None):
     with conn:
         if command == "set":
             # Create or update value
-            conn.execute(f"""INSERT INTO cache VALUES ('{key}', '{value}', {exptime}, {bytes_length})
+            conn.execute(
+                f"""INSERT INTO cache ('key', 'value', 'exptime', 'bytes') VALUES ('{key}', '{value}', {exptime}, {bytes_length})
                         ON CONFLICT (key)
                         DO UPDATE SET value='{value}', exptime={exptime}, bytes={bytes_length} WHERE key='{key}';""")
         elif command == "delete":
@@ -55,18 +57,22 @@ if __name__ == '__main__':
         logging.info("Wrong amount of arguments. Expected DB filename")
     db_file_name = sys.argv[1]
 
-    TCP_IP = '127.0.0.1'
+    TCP_IP = '0.0.0.0'
     TCP_PORT = 11211
     BUFFER_SIZE = 10240
 
     #  Initialize DB if not exist
     conn = sqlite3.connect(db_file_name)
     with conn:
-        conn.execute("""CREATE TABLE IF NOT EXISTS cache (
-                            key char(250) PRIMARY KEY NOT NULL,
-                            value char(250) NOT NULL,
-                            exptime INT NULL,
-                            bytes INT NULL);""")
+        try:
+            conn.execute("""CREATE TABLE cache (
+                                key char(250) PRIMARY KEY NOT NULL,
+                                value char(250) NOT NULL,
+                                exptime INT NULL,
+                                bytes INT NULL);""")
+        except sqlite3.OperationalError:
+            # Table already exist
+            pass
 
     # Server
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -81,7 +87,11 @@ if __name__ == '__main__':
         try:
             while True:
                 #  Waiting for data
-                data = client_socket.recv(BUFFER_SIZE).decode('utf-8')
+                try:
+                    data = client_socket.recv(BUFFER_SIZE).decode('utf-8')
+                except UnicodeDecodeError:
+                    client_socket.close()
+                    break
                 if data.split()[0] == "quit":
                     logging.error('Connection closed by user')
                     client_socket.close()
